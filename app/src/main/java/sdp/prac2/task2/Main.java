@@ -1,19 +1,20 @@
 package sdp.prac2.task2;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.Scanner;
+
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.parsers.SAXParser;
+import javax.xml.parsers.SAXParserFactory;
+
+import org.xml.sax.Attributes;
+import org.xml.sax.SAXException;
+import org.xml.sax.helpers.DefaultHandler;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.DocumentBuilder;
-
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
-import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
 
 public class Main {
     public static void main(String[] args) {
@@ -31,33 +32,13 @@ public class Main {
 
             File file = new File("data.xml");
 
-            DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
-            DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
-            Document doc = dBuilder.parse(file);
+            SAXParserFactory factory = SAXParserFactory.newInstance();
+            SAXParser saxParser = factory.newSAXParser();
+            RecordHandler handler = new RecordHandler(fields);
 
-            doc.getDocumentElement().normalize();
+            saxParser.parse(file, handler);
 
-            NodeList nodeList = doc.getElementsByTagName("record");
-
-            Gson gson = new GsonBuilder().setPrettyPrinting().create();
-
-            for (int i = 0; i < nodeList.getLength(); i++) {
-                Node node = nodeList.item(i);
-
-                if (node.getNodeType() == Node.ELEMENT_NODE) {
-                    Element element = (Element) node;
-                    JsonObject jsonObject = new JsonObject();
-
-                    for (String field : fields) {
-                        String value = element.getElementsByTagName(field).item(0).getTextContent().trim();
-                        jsonObject.addProperty(field, value);
-                    }
-
-                    String json = gson.toJson(jsonObject);
-                    System.out.println(json);
-                }
-            }
-        } catch (Exception e) {
+        } catch (ParserConfigurationException | SAXException | IOException e) {
             System.out.println("An error occurred: " + e.getMessage());
         }
     }
@@ -75,6 +56,57 @@ public class Main {
     }
 }
 
+class RecordHandler extends DefaultHandler {
+    private String[] fields;
+    private Gson gson;
+    private JsonObject jsonObject;
+    private StringBuilder fieldValue;
+    private boolean isRecord;
+
+    public RecordHandler(String[] fields) {
+        this.fields = fields;
+        this.gson = new GsonBuilder().setPrettyPrinting().create();
+        this.jsonObject = new JsonObject();
+        this.fieldValue = new StringBuilder();
+        this.isRecord = false;
+    }
+
+    public void startElement(String uri, String localName, String qName, Attributes attributes) throws SAXException {
+        if (qName.equalsIgnoreCase("record")) {
+            this.isRecord = true;
+        } else if (isRecord && isValidField(qName)) {
+            this.fieldValue.setLength(0);
+        }
+    }
+
+    public void characters(char[] ch, int start, int length) throws SAXException {
+        if (isRecord && this.fieldValue != null) {
+            this.fieldValue.append(ch, start, length);
+        }
+    }
+
+    public void endElement(String uri, String localName, String qName) throws SAXException {
+        if (qName.equalsIgnoreCase("record")) {
+            String json = gson.toJson(jsonObject);
+            System.out.println(json);
+            this.jsonObject = new JsonObject();
+            this.isRecord = false;
+        } else if (isRecord && isValidField(qName)) {
+            String value = this.fieldValue.toString().trim();
+            this.jsonObject.addProperty(qName, value);
+        }
+    }
+
+    private boolean isValidField(String field) {
+        for (String validField : fields) {
+            if (validField.equalsIgnoreCase(field)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+}
 
 
 
