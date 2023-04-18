@@ -7,6 +7,8 @@ import org.w3c.dom.NodeList;
 import org.w3c.dom.Node;
 import org.w3c.dom.Element;
 import java.io.File;
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 
 public class Main {
     public static void main(String[] args) {
@@ -17,27 +19,22 @@ public class Main {
             Document doc = dBuilder.parse(inputFile);
             doc.getDocumentElement().normalize();
             NodeList nodeList = doc.getElementsByTagName("record");
+            Gson gson = new Gson();
             for (int i = 0; i < nodeList.getLength(); i++) {
                 Node node = nodeList.item(i);
                 if (node.getNodeType() == Node.ELEMENT_NODE) {
                     Element eElement = (Element) node;
-                    String name = "";
-                    String country = "";
-                    // check if name and country fields are selected
+                    JsonObject recordObj = new JsonObject();
+                    // add selected fields to JSON object
                     if (args.length >= 1 && args[0].equals("name")) {
-                        name = eElement.getElementsByTagName("name").item(0).getTextContent();
+                        recordObj.addProperty("name", eElement.getElementsByTagName("name").item(0).getTextContent());
                     }
                     if (args.length >= 2 && args[1].equals("country")) {
-                        country = eElement.getElementsByTagName("country").item(0).getTextContent();
+                        recordObj.addProperty("country", eElement.getElementsByTagName("country").item(0).getTextContent());
                     }
-                    // print selected fields
-                    System.out.println("Record " + (i+1) + ":");
-                    if (!name.isEmpty()) {
-                        System.out.println("Name: " + name);
-                    }
-                    if (!country.isEmpty()) {
-                        System.out.println("Country: " + country);
-                    }
+                    // serialize JSON object to string and print
+                    String jsonStr = gson.toJson(recordObj);
+                    System.out.println(jsonStr);
                 }
             }
         } catch (Exception e) {
@@ -45,5 +42,6 @@ public class Main {
         }
     }
 }
+
 
 
